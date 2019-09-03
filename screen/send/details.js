@@ -321,25 +321,25 @@ export default class SendDetails extends Component {
     this.setState({ isLoading: true });
     let error = false;
     let requestedSatPerByte = this.state.fee.toString().replace(/\D/g, '');
-
-    if (!this.state.amount || this.state.amount === '0' || parseFloat(this.state.amount) === 0) {
+    let firstTransaction = this.state.addresses[0];
+    if (!firstTransaction.amount || firstTransaction.amount === '0' || parseFloat(firstTransaction.amount) === 0) {
       error = loc.send.details.amount_field_is_not_valid;
       console.log('validation error');
     } else if (!this.state.fee || !requestedSatPerByte || parseFloat(requestedSatPerByte) < 1) {
       error = loc.send.details.fee_field_is_not_valid;
       console.log('validation error');
-    } else if (!this.state.addresses) {
+    } else if (!firstTransaction.address) {
       error = loc.send.details.address_field_is_not_valid;
       console.log('validation error');
-    } else if (this.recalculateAvailableBalance(this.state.fromWallet.getBalance(), this.state.amount, 0) < 0) {
+    } else if (this.recalculateAvailableBalance(this.state.fromWallet.getBalance(), firstTransaction.amount, 0) < 0) {
       // first sanity check is that sending amount is not bigger than available balance
       error = loc.send.details.total_exceeds_balance;
       console.log('validation error');
     } else if (BitcoinBIP70TransactionDecode.isExpired(this.state.bip70TransactionExpiration)) {
       error = 'Transaction has expired.';
       console.log('validation error');
-    } else if (this.state.address) {
-      const address = this.state.address.trim().toLowerCase();
+    } else if (firstTransaction.address) {
+      const address = firstTransaction.address.trim().toLowerCase();
       if (address.startsWith('lnb') || address.startsWith('lightning:lnb')) {
         error =
           'This address appears to be for a Lightning invoice. Please, go to your Lightning wallet in order to make a payment for this invoice.';
@@ -349,7 +349,7 @@ export default class SendDetails extends Component {
 
     if (!error) {
       try {
-        bitcoin.address.toOutputScript(this.state.address);
+        bitcoin.address.toOutputScript(firstTransaction.address);
       } catch (err) {
         console.log('validation error');
         console.log(err);
@@ -398,13 +398,13 @@ export default class SendDetails extends Component {
 
         do {
           console.log('try #', tries, 'fee=', fee);
-          if (this.recalculateAvailableBalance(this.state.fromWallet.getBalance(), this.state.amount, fee) < 0) {
+          if (this.recalculateAvailableBalance(this.state.fromWallet.getBalance(), firstTransaction.amount, fee) < 0) {
             // we could not add any fee. user is trying to send all he's got. that wont work
             throw new Error(loc.send.details.total_exceeds_balance);
           }
 
           let startTime = Date.now();
-          tx = this.state.fromWallet.createTx(utxo, this.state.amount, fee, this.state.address, this.state.memo);
+          tx = this.state.fromWallet.createTx(utxo, firstTransaction.amount, fee, firstTransaction.address, this.state.memo);
           let endTime = Date.now();
           console.log('create tx ', (endTime - startTime) / 1000, 'sec');
 
@@ -446,14 +446,14 @@ export default class SendDetails extends Component {
 
       this.setState({ isLoading: false }, () =>
         this.props.navigation.navigate('Confirm', {
-          amount: this.state.amount,
+          amount: firstTransaction.amount,
           // HD wallet's utxo is in sats, classic segwit wallet utxos are in btc
           fee: this.calculateFee(
             utxo,
             tx,
             this.state.fromWallet.type === HDSegwitP2SHWallet.type || this.state.fromWallet.type === HDLegacyP2PKHWallet.type,
           ),
-          address: this.state.address,
+          address: firstTransaction.address,
           memo: this.state.memo,
           fromWallet: this.state.fromWallet,
           tx: tx,
@@ -467,15 +467,19 @@ export default class SendDetails extends Component {
     /** @type {HDSegwitBech32Wallet} */
     const wallet = this.state.fromWallet;
     await wallet.fetchUtxo();
+    const firstTransaction = this.state.addresses[0];
     const changeAddress = await wallet.getChangeAddressAsync();
-    let satoshis = new BigNumber(this.state.amount).multipliedBy(100000000).toNumber();
+    let satoshis = new BigNumber(firstTransaction.amount).multipliedBy(100000000).toNumber();
     const requestedSatPerByte = +this.state.fee.toString().replace(/\D/g, '');
     console.log({ satoshis, requestedSatPerByte, utxo: wallet.getUtxo() });
 
     let targets = [];
-    targets.push({ address: this.state.address, value: satoshis });
+    for (const transaction of this.state.addresses) {
+      let satoshis = new BigNumber(transaction.amount).multipliedBy(100000000).toNumber();
+      targets.push({ address: transaction.address, value: satoshis });
+    }
 
-    if (this.state.amount === BitcoinUnit.MAX) {
+    if (firstTransaction.amount === BitcoinUnit.MAX) {
       targets = [{ address: this.state.address }];
     }
 
@@ -490,9 +494,9 @@ export default class SendDetails extends Component {
 
     this.setState({ isLoading: false }, () =>
       this.props.navigation.navigate('Confirm', {
-        amount: this.state.amount,
+        amount: firstTransaction.amount,
         fee: new BigNumber(fee).dividedBy(100000000).toNumber(),
-        address: this.state.address,
+        address: firstTransaction.address,
         memo: this.state.memo,
         fromWallet: wallet,
         tx: tx.toHex(),
@@ -629,22 +633,30 @@ export default class SendDetails extends Component {
     );
   };
 
-  renderBitcoinTransactionInfoFields = item => {
+  renderBitcoinTransactionInfoFields = ({item, index}) => {
     return (
       <>
         <BlueBitcoinAmount
           isLoading={this.state.isLoading}
           amount={item.amount ? item.amount.toString() : null}
-          onChangeText={text => (item.amount = text)}
+          onChangeText={text => {
+            item.amount = text
+            const transactions = this.state.addresses;
+            transactions[index] = item
+            this.setState({ addresses: transactions });
+          }}
           inputAccessoryViewID={this.state.fromWallet.allowSendMax() ? BlueUseAllFundsButton.InputAccessoryViewID : null}
           onFocus={() => this.setState({ isAmountToolbarVisibleForAndroid: true })}
           onBlur={() => this.setState({ isAmountToolbarVisibleForAndroid: false })}
         />
         <BlueAddressInput
           onChangeText={text => {
+            const transactions = this.state.addresses;
             if (!this.processBIP70Invoice(text)) {
               item.address = text.trim().replace('bitcoin:', '');
+              transactions[index] = item;
               this.setState({
+                addresses: transactions,
                 isLoading: false,
                 bip70TransactionExpiration: null,
               });
@@ -653,14 +665,17 @@ export default class SendDetails extends Component {
                 const { address, amount, memo } = this.decodeBitcoinUri(text);
                 item.address = address || item.address;
                 item.amount = amount || item.amount;
+                transactions[index] = item;
                 this.setState({
+                  addresses: transactions,
                   memo: memo || this.state.memo,
                   isLoading: false,
                   bip70TransactionExpiration: null,
                 });
               } catch (_) {
                 item.address = text.trim();
-                this.setState({ isLoading: false, bip70TransactionExpiration: null });
+                transactions[index] = item;
+                this.setState({ addresses: transactions, isLoading: false, bip70TransactionExpiration: null });
               }
             }
           }}
@@ -693,9 +708,8 @@ export default class SendDetails extends Component {
                 data={this.state.addresses}
                 extraData={this.state.addresses}
                 renderItem={this.renderBitcoinTransactionInfoFields}
-                onContentSizeChange={() => this.flatList.scrollToEnd({animated: true})}
-                onLayout={() => this.flatList.scrollToEnd({animated: true})}
-               
+                onContentSizeChange={() => this.flatList.scrollToEnd({ animated: true })}
+                onLayout={() => this.flatList.scrollToEnd({ animated: true })}
               />
               <View
                 style={{
