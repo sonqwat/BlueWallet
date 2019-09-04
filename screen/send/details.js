@@ -11,7 +11,9 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
   StyleSheet,
+  Dimensions,
   Platform,
+  ScrollView,
   Text,
 } from 'react-native';
 import { Icon } from 'react-native-elements';
@@ -35,9 +37,9 @@ import { BitcoinUnit, Chain } from '../../models/bitcoinUnits';
 import { HDLegacyP2PKHWallet, HDSegwitBech32Wallet, HDSegwitP2SHWallet, LightningCustodianWallet } from '../../class';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import { BitcoinTransaction } from '../../models/bitcoinTransactionInfo';
-import { FlatList } from 'react-native-gesture-handler';
 const bip21 = require('bip21');
 let BigNumber = require('bignumber.js');
+const { height, width } = Dimensions.get('window');
 /** @type {AppStorage} */
 let BlueApp = require('../../BlueApp');
 let loc = require('../../loc');
@@ -621,71 +623,69 @@ export default class SendDetails extends Component {
             }
           >
             <Text style={{ color: '#0c2550', fontSize: 14 }}>{this.state.fromWallet.getLabel()}</Text>
-            <Text style={{ color: '#0c2550', fontSize: 14, fontWeight: '600', marginLeft: 8, marginRight: 4 }}>
-              {loc.formatBalanceWithoutSuffix(this.state.fromWallet.getBalance(), BitcoinUnit.BTC, false)}
-            </Text>
-            <Text style={{ color: '#0c2550', fontSize: 11, fontWeight: '600', textAlignVertical: 'bottom', marginTop: 2 }}>
-              {BitcoinUnit.BTC}
-            </Text>
           </TouchableOpacity>
         </View>
       </View>
     );
   };
 
-  renderBitcoinTransactionInfoFields = ({item, index}) => {
-    return (
-      <>
-        <BlueBitcoinAmount
-          isLoading={this.state.isLoading}
-          amount={item.amount ? item.amount.toString() : null}
-          onChangeText={text => {
-            item.amount = text
-            const transactions = this.state.addresses;
-            transactions[index] = item
-            this.setState({ addresses: transactions });
-          }}
-          inputAccessoryViewID={this.state.fromWallet.allowSendMax() ? BlueUseAllFundsButton.InputAccessoryViewID : null}
-          onFocus={() => this.setState({ isAmountToolbarVisibleForAndroid: true })}
-          onBlur={() => this.setState({ isAmountToolbarVisibleForAndroid: false })}
-        />
-        <BlueAddressInput
-          onChangeText={text => {
-            const transactions = this.state.addresses;
-            if (!this.processBIP70Invoice(text)) {
-              item.address = text.trim().replace('bitcoin:', '');
+  renderBitcoinTransactionInfoFields = () => {
+    let rows = [];
+    for (const [index, item] of this.state.addresses.entries()) {
+      rows.push(
+        <View style={{ minWidth: width }}>
+          <BlueBitcoinAmount
+            isLoading={this.state.isLoading}
+            amount={item.amount ? item.amount.toString() : null}
+            onChangeText={text => {
+              item.amount = text;
+              const transactions = this.state.addresses;
               transactions[index] = item;
-              this.setState({
-                addresses: transactions,
-                isLoading: false,
-                bip70TransactionExpiration: null,
-              });
-            } else {
-              try {
-                const { address, amount, memo } = this.decodeBitcoinUri(text);
-                item.address = address || item.address;
-                item.amount = amount || item.amount;
+              this.setState({ addresses: transactions });
+            }}
+            inputAccessoryViewID={this.state.fromWallet.allowSendMax() ? BlueUseAllFundsButton.InputAccessoryViewID : null}
+            onFocus={() => this.setState({ isAmountToolbarVisibleForAndroid: true })}
+            onBlur={() => this.setState({ isAmountToolbarVisibleForAndroid: false })}
+          />
+          <BlueAddressInput
+            onChangeText={text => {
+              const transactions = this.state.addresses;
+              if (!this.processBIP70Invoice(text)) {
+                item.address = text.trim().replace('bitcoin:', '');
                 transactions[index] = item;
                 this.setState({
                   addresses: transactions,
-                  memo: memo || this.state.memo,
                   isLoading: false,
                   bip70TransactionExpiration: null,
                 });
-              } catch (_) {
-                item.address = text.trim();
-                transactions[index] = item;
-                this.setState({ addresses: transactions, isLoading: false, bip70TransactionExpiration: null });
+              } else {
+                try {
+                  const { address, amount, memo } = this.decodeBitcoinUri(text);
+                  item.address = address || item.address;
+                  item.amount = amount || item.amount;
+                  transactions[index] = item;
+                  this.setState({
+                    addresses: transactions,
+                    memo: memo || this.state.memo,
+                    isLoading: false,
+                    bip70TransactionExpiration: null,
+                  });
+                } catch (_) {
+                  item.address = text.trim();
+                  transactions[index] = item;
+                  this.setState({ addresses: transactions, isLoading: false, bip70TransactionExpiration: null });
+                }
               }
-            }
-          }}
-          onBarScanned={this.processAddressData}
-          address={item.address}
-          isLoading={this.state.isLoading}
-          inputAccessoryViewID={BlueDismissKeyboardInputAccessory.InputAccessoryViewID}
-        />
-      </>
-    );
+            }}
+            onBarScanned={this.processAddressData}
+            address={item.address}
+            isLoading={this.state.isLoading}
+            inputAccessoryViewID={BlueDismissKeyboardInputAccessory.InputAccessoryViewID}
+          />
+        </View>,
+      );
+    }
+    return rows;
   };
 
   render() {
@@ -701,16 +701,16 @@ export default class SendDetails extends Component {
         <View style={{ flex: 1, justifyContent: 'space-between' }}>
           <View>
             <KeyboardAvoidingView behavior="position">
-              <FlatList
-                ref={ref => (this.flatList = ref)}
-                style={{ height: '45%', maxHeight: '45%' }}
-                keyExtractor={(_item, index) => `${index}`}
-                data={this.state.addresses}
-                extraData={this.state.addresses}
-                renderItem={this.renderBitcoinTransactionInfoFields}
-                onContentSizeChange={() => this.flatList.scrollToEnd({ animated: true })}
-                onLayout={() => this.flatList.scrollToEnd({ animated: true })}
-              />
+              <ScrollView
+                pagingEnabled
+                horizontal
+                contentContainerStyle={{ flexWrap: 'wrap', flexDirection: 'row' }}
+                ref={ref => (this.scrollView = ref)}
+                onContentSizeChange={() => this.scrollView.scrollToEnd()}
+                onLayout={() => this.scrollView.scrollToEnd()}
+              >
+                {this.renderBitcoinTransactionInfoFields()}
+              </ScrollView>
               <View
                 style={{
                   height: 0.5,
@@ -734,7 +734,10 @@ export default class SendDetails extends Component {
                     {
                       addresses,
                     },
-                    () => this.flatList.scrollToEnd(),
+                    () => {
+                      this.scrollView.scrollToEnd();
+                      if (this.state.addresses.length > 1) this.scrollView.flashScrollIndicators();
+                    },
                   );
                 }}
               />
