@@ -15,7 +15,6 @@ import {
 import PropTypes from 'prop-types';
 import Privacy from '../../Privacy';
 import Share from 'react-native-share';
-import { ScrollView } from 'react-native-gesture-handler';
 import SystemSetting from 'react-native-system-setting';
 /** @type {AppStorage} */
 let BlueApp = require('../../BlueApp');
@@ -96,7 +95,7 @@ export default class ReceiveDetails extends Component {
   render() {
     return (
       <SafeBlueArea style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ justifyContent: 'space-between' }}>
+        <View style={{ flex: 1, justifyContent: 'space-between' }}>
           <View style={{ marginTop: 32, alignItems: 'center', paddingHorizontal: 16 }}>
             {this.state.bip21encoded === undefined ? (
               <View style={{ alignItems: 'center', width: 300, height: 300 }}>
@@ -151,7 +150,7 @@ export default class ReceiveDetails extends Component {
               />
             </View>
           </View>
-        </ScrollView>
+        </View>
       </SafeBlueArea>
     );
   }

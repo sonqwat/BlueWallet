@@ -138,7 +138,7 @@ export default class WalletsAdd extends Component {
                 });
               }}
               style={{
-                width: '45%',
+                width: 141,
                 height: 88,
               }}
             />
@@ -155,7 +155,7 @@ export default class WalletsAdd extends Component {
                 });
               }}
               style={{
-                width: '45%',
+                width: 141,
                 height: 88,
               }}
             />

@@ -314,6 +314,7 @@ export default class TransactionsStatus extends Component {
                       }
                       title="Bump Fee"
                     />
+                    <BlueSpacing20 />
                   </React.Fragment>
                 );
               }
@@ -323,12 +324,13 @@ export default class TransactionsStatus extends Component {
                 return (
                   <React.Fragment>
                     <ActivityIndicator />
+                    <BlueSpacing20 />
                   </React.Fragment>
                 );
               } else if (this.state.isRBFCancelPossible === buttonStatus.possible) {
                 return (
                   <React.Fragment>
-                    <TouchableOpacity style={{ marginVertical: 16 }}>
+                    <TouchableOpacity style={{ marginVertical: 48 }}>
                       <Text
                         onPress={() =>
                           this.props.navigation.navigate('RBFCancel', {
@@ -347,7 +349,7 @@ export default class TransactionsStatus extends Component {
             })()}
 
             <TouchableOpacity
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
               onPress={() => this.props.navigation.navigate('TransactionDetails', { hash: this.state.tx.hash })}
             >
               <Text style={{ color: '#9aa0aa', fontSize: 14, marginRight: 8 }}>{loc.send.create.details.toLowerCase()}</Text>

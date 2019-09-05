@@ -8,7 +8,6 @@ import { BlueSendButtonIcon, BlueReceiveButtonIcon, BlueTransactionListItem, Blu
 import { Icon } from 'react-native-elements';
 import { LightningCustodianWallet } from '../../class';
 import Handoff from 'react-native-handoff';
-import { ScrollView } from 'react-native-gesture-handler';
 /** @type {AppStorage} */
 let BlueApp = require('../../BlueApp');
 let loc = require('../../loc');
@@ -174,7 +173,7 @@ export default class WalletTransactions extends Component {
 
   renderListFooterComponent = () => {
     // if not all txs rendered - display indicator
-    return (this.getTransactions(Infinity).length > this.state.limit && <ActivityIndicator style={{ marginVertical: 20 }} />) || <View />;
+    return (this.getTransactions(Infinity).length > this.state.limit && <ActivityIndicator />) || <View />;
   };
 
   renderListHeaderComponent = () => {
@@ -231,7 +230,7 @@ export default class WalletTransactions extends Component {
           wallet={this.state.wallet}
           onWalletUnitChange={wallet =>
             InteractionManager.runAfterInteractions(async () => {
-              this.setState({ wallet }, () => InteractionManager.runAfterInteractions(() => BlueApp.saveToDisk()));
+              this.setState({ wallet }, () => BlueApp.saveToDisk());
             })
           }
         />
@@ -251,9 +250,11 @@ export default class WalletTransactions extends Component {
                   margin: 16,
                   backgroundColor: '#f2f2f2',
                   borderRadius: 9,
+                  minWidth: 343,
                   minHeight: 49,
                   justifyContent: 'center',
                   alignItems: 'center',
+                  alignSelf: 'center',
                 }}
               >
                 <Text style={{ color: '#062453', fontSize: 18 }}>marketplace</Text>
@@ -280,7 +281,7 @@ export default class WalletTransactions extends Component {
             ListHeaderComponent={this.renderListHeaderComponent}
             ListFooterComponent={this.renderListFooterComponent}
             ListEmptyComponent={
-              <ScrollView style={{ minHeight: 100 }}  contentContainerStyle={{ flex: 1, justifyContent: 'center', paddingHorizontal: 16 }}>
+              <View style={{ top: 50, minHeight: 200, paddingHorizontal: 16 }}>
                 <Text
                   numberOfLines={0}
                   style={{
@@ -322,7 +323,7 @@ export default class WalletTransactions extends Component {
                     {loc.wallets.list.tap_here_to_buy}
                   </Text>
                 )}
-              </ScrollView>
+              </View>
             }
             refreshControl={
               <RefreshControl onRefresh={() => this.refreshTransactions()} refreshing={this.state.showShowFlatListRefreshControl} />
@@ -330,7 +331,6 @@ export default class WalletTransactions extends Component {
             data={this.state.dataSource}
             keyExtractor={this._keyExtractor}
             renderItem={this.renderItem}
-            contentInset={{ top: 0, left: 0, bottom: 90, right: 0 }}
           />
         </View>
         <View
@@ -342,6 +342,7 @@ export default class WalletTransactions extends Component {
             bottom: 30,
             borderRadius: 30,
             minHeight: 48,
+            flex: 0.84,
             overflow: 'hidden',
           }}
         >
